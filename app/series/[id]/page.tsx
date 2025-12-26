@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, ImageIcon, Video, Loader2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -192,8 +192,11 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
     setIsProcessingQueue(false);
   };
 
+  // Use a ref to track if we're currently processing to avoid concurrent processing
+  const processingRef = React.useRef(false);
+
   useEffect(() => {
-    if (!isProcessingQueue || queue.length === 0) return;
+    if (!isProcessingQueue || queue.length === 0 || processingRef.current) return;
 
     const pendingTask = queue.find((t) => t.status === "pending");
     if (!pendingTask) {
@@ -203,7 +206,10 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
       return;
     }
 
-    processTask(pendingTask);
+    processingRef.current = true;
+    processTask(pendingTask).finally(() => {
+      processingRef.current = false;
+    });
   }, [isProcessingQueue, queue]);
 
   const processTask = async (task: DownloadTask) => {
@@ -266,6 +272,9 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
     if (!series) return;
     const tasks: DownloadTask[] = [];
 
+    console.log("series.video_list", series.video_list);
+    // return;
+
     // Series Cover
     tasks.push({
       id: "series-cover",
@@ -275,22 +284,33 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
     });
 
     // Episodes (Cover then Video for each)
-    series.video_list.forEach((ep) => {
-      tasks.push({
-        id: `ep-${ep.vid}-cover`,
-        label: `Episode ${ep.vid_index} Cover`,
-        type: "image",
-        episode: ep,
-        status: "pending",
+    series.video_list
+      .filter(async (item) => {
+        // CHECK ON /public/downloads/{:id_series}/filename
+        const coverPath = `/downloads/${series.id}/${series.series_title}_ep${item.vid_index}_cover.jpg`;
+        const videoPath = `/downloads/${series.id}/${series.series_title}_ep${item.vid_index}.mp4`;
+        // return !fs.existsSync(coverPath) || !fs.existsSync(videoPath);
+
+        const coverExists = await fetch(coverPath, { method: "HEAD" }).then((res) => res.ok);
+        const videoExists = await fetch(videoPath, { method: "HEAD" }).then((res) => res.ok);
+        return !coverExists || !videoExists;
+      })
+      .forEach((ep) => {
+        tasks.push({
+          id: `ep-${ep.vid}-cover`,
+          label: `Episode ${ep.vid_index} Cover`,
+          type: "image",
+          episode: ep,
+          status: "pending",
+        });
+        tasks.push({
+          id: `ep-${ep.vid}-video`,
+          label: `Episode ${ep.vid_index} Video`,
+          type: "video",
+          episode: ep,
+          status: "pending",
+        });
       });
-      tasks.push({
-        id: `ep-${ep.vid}-video`,
-        label: `Episode ${ep.vid_index} Video`,
-        type: "video",
-        episode: ep,
-        status: "pending",
-      });
-    });
 
     startQueue(tasks);
   };
