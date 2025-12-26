@@ -1,6 +1,7 @@
 import FormData from 'form-data';
 import fs from 'fs';
 import path from 'path';
+import axios from 'axios';
 
 const RUMBLE_BASE_URL = 'https://web22.rumble.com/upload.php';
 const RUMBLE_API_VERSION = '1.3';
@@ -34,39 +35,43 @@ export async function uploadVideoFile(filePath: string, filename: string): Promi
     console.log("=".repeat(50))
     console.log("uploadVideoFile", filePath, filename)
     console.log("=".repeat(50))
-    // const fileBuffer = fs.readFileSync(filePath);
 
     if (!fs.existsSync(filePath)) {
         throw new Error(`File not found: ${filePath}`);
     }
 
-
     const form = new FormData();
-    // form.append('Filedata', fileBuffer, {
-    //     filename: filename,
-    //     contentType: 'video/mp4',
-    // });
     form.append('Filedata', fs.createReadStream(filePath), {
         filename: filename,
         contentType: 'video/mp4',
     });
 
-    const response = await fetch(`${RUMBLE_BASE_URL}?api=${RUMBLE_API_VERSION}`, {
-        method: 'POST',
-        headers: {
-            ...getRumbleHeaders(),
-            ...form.getHeaders(),
-        },
-        body: form,
-    });
+    try {
+        const response = await axios.post(
+            `${RUMBLE_BASE_URL}?api=${RUMBLE_API_VERSION}`,
+            form,
+            {
+                headers: {
+                    ...getRumbleHeaders(),
+                    ...form.getHeaders(),
+                },
+                maxBodyLength: Infinity,
+                maxContentLength: Infinity,
+            }
+        );
 
-    const videoId = await response.text();
+        const videoId = response.data;
 
-    if (!videoId || videoId.trim() === '') {
-        throw new Error('Failed to upload video - no video ID returned');
+        if (!videoId || videoId.trim() === '') {
+            throw new Error('Failed to upload video - no video ID returned');
+        }
+
+        console.log("Video uploaded successfully. Video ID:", videoId.trim());
+        return videoId.trim();
+    } catch (error) {
+        console.error("Upload error:", error);
+        throw error;
     }
-
-    return videoId.trim();
 }
 
 /**
@@ -126,50 +131,99 @@ export async function publishVideo(
         time_end: timeEnd,
     };
 
-    const formData = new URLSearchParams({
-        title: metadata.title,
-        description: metadata.description,
-        'video[]': `0-${videoId}.mp4`,
-        featured: '6',
-        rights: '1',
-        terms: '1',
-        facebookUpload: '',
-        vimeoUpload: '',
-        infoWho: '',
-        infoWhen: '',
-        infoWhere: '',
-        infoExtUser: '',
-        tags: '',
-        channelId: channelId,
-        siteChannelId: siteChannelId,
-        mediaChannelId: mediaChannelId,
-        isGamblingRelated: 'false',
-        set_default_channel_id: '1',
-        sendPush: '0',
-        setFeaturedForUser: '1',
-        setFeaturedForChannel: '1',
-        visibility: 'public',
-        availability: 'free',
-        file_meta: JSON.stringify(fileMeta),
-        thumb: metadata.thumbnailId,
-    });
+    // const formData = new URLSearchParams({
+    //     title: metadata.title,
+    //     description: metadata.description,
+    //     'video[]': `${videoId}`,
+    //     featured: '6',
+    //     rights: '1',
+    //     terms: '1',
+    //     facebookUpload: '',
+    //     vimeoUpload: '',
+    //     infoWho: '',
+    //     infoWhen: '',
+    //     infoWhere: '',
+    //     infoExtUser: '',
+    //     tags: '',
+    //     channelId: channelId,
+    //     siteChannelId: siteChannelId,
+    //     mediaChannelId: mediaChannelId,
+    //     isGamblingRelated: 'false',
+    //     set_default_channel_id: '1',
+    //     sendPush: '0',
+    //     setFeaturedForUser: '1',
+    //     setFeaturedForChannel: '1',
+    //     visibility: 'public',
+    //     availability: 'free',
+    //     file_meta: JSON.stringify(fileMeta),
+    //     thumb: metadata.thumbnailId,
+    // });
+    const formData = new FormData();
+    formData.append('title', metadata.title);
+    formData.append('description', metadata.description);
+    formData.append('video[]', `${videoId}`);
+    formData.append('featured', '6');
+    formData.append('rights', '1');
+    formData.append('terms', '1');
+    formData.append('facebookUpload', '');
+    formData.append('vimeoUpload', '');
+    formData.append('infoWho', '');
+    formData.append('infoWhen', '');
+    formData.append('infoWhere', '');
+    formData.append('infoExtUser', '');
+    formData.append('tags', '');
+    formData.append('channelId', channelId);
+    formData.append('siteChannelId', siteChannelId);
+    formData.append('mediaChannelId', mediaChannelId);
+    formData.append('isGamblingRelated', 'false');
+    formData.append('set_default_channel_id', '1');
+    formData.append('sendPush', '0');
+    formData.append('setFeaturedForUser', '1');
+    formData.append('setFeaturedForChannel', '1');
+    formData.append('visibility', 'public');
+    formData.append('availability', 'free');
+    formData.append('file_meta', JSON.stringify(fileMeta));
+    formData.append('thumb', metadata.thumbnailId);
 
-    const response = await fetch(`${RUMBLE_BASE_URL}?form=1&api=${RUMBLE_API_VERSION}`, {
-        method: 'POST',
-        headers: getRumbleHeaders('application/x-www-form-urlencoded; charset=UTF-8'),
-        body: formData.toString(),
-    });
+    // const response = await fetch(`${RUMBLE_BASE_URL}?form=1&api=${RUMBLE_API_VERSION}`, {
+    //     method: 'POST',
+    //     headers: getRumbleHeaders('application/x-www-form-urlencoded; charset=UTF-8'),
+    //     body: formData.toString(),
+    // });
 
-    const result = await response.text();
+    // const result = await response.text();
 
-    // The response contains the video URL or ID
-    // Parse it to extract the Rumble URL if possible
-    // For now, return success if we got a response
+    try {
+        const response = await axios.post(
+            `${RUMBLE_BASE_URL}?form=1&api=${RUMBLE_API_VERSION}`,
+            formData,
+            {
+                headers: {
+                    ...getRumbleHeaders(),
+                    ...formData.getHeaders(),
+                },
+                maxBodyLength: Infinity,
+                maxContentLength: Infinity,
+            }
+        );
 
-    return {
-        success: response.ok,
-        rumbleUrl: result.includes('rumble.com') ? result : undefined,
-    };
+        const result = response.data;
+        console.log("result", result)
+
+        // The response contains the video URL or ID
+        // Parse it to extract the Rumble URL if possible
+        // For now, return success if we got a response
+
+        return {
+            success: true,
+            rumbleUrl: result.includes('rumble.com') ? result : undefined,
+        };
+    } catch (error) {
+        console.error('Error publishing video to Rumble:', error);
+        return {
+            success: false,
+        };
+    }
 }
 
 /**
@@ -185,15 +239,19 @@ export async function uploadToRumble(
 ): Promise<{ videoId: string; rumbleUrl?: string }> {
     // Step 1: Upload video file
     const videoId = await uploadVideoFile(localFilePath, filename);
+    console.log("videoId", videoId)
 
     // Step 2: Send duration request
     await sendDurationRequest(videoId);
+    console.log("duration request sent")
 
     // Step 3: Fetch thumbnails
     const thumbnails = await fetchThumbnails(videoId);
+    console.log("thumbnails", thumbnails)
 
     // Select the first available thumbnail
     const thumbnailId = Object.keys(thumbnails)[0];
+    console.log("thumbnailId", thumbnailId)
 
     if (!thumbnailId) {
         throw new Error('No thumbnails available');
@@ -201,6 +259,7 @@ export async function uploadToRumble(
 
     // Get file size
     const stats = fs.statSync(localFilePath);
+    console.log("stats", stats)
 
     // Step 4 & 5: Publish video
     const result = await publishVideo(videoId, {
