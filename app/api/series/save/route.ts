@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSeriesDetail } from "@/lib/melolo-api"
 import { saveSeries, saveEpisode } from "@/lib/db"
+import { paraphraseSeriesInfo } from "@/lib/ai-text"
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,12 +19,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch series data" }, { status: 500 })
     }
 
-    // Save series to database
+    const originalTitle = videoData.series_title || ""
+    const originalIntro = videoData.series_intro || ""
+
+    // Paraphrase title and intro using AI
+    console.log('[Series Save] Starting AI paraphrasing for series:', originalTitle)
+    const { title: paraphrasedTitle, intro: paraphrasedIntro } = await paraphraseSeriesInfo(
+      originalTitle,
+      originalIntro
+    )
+    console.log('[Series Save] AI paraphrasing completed')
+
+    // Save series to database with paraphrased content
     const dbSeriesId = await saveSeries({
       melolo_series_id: seriesId,
       cover_url: videoData.series_cover || "",
-      intro: videoData.series_intro || "",
-      title: videoData.series_title || "",
+      intro: paraphrasedIntro,
+      title: paraphrasedTitle,
       episode_count: videoData.episode_cnt || 0,
     })
 
@@ -33,7 +45,7 @@ export async function POST(request: NextRequest) {
       await saveEpisode(dbSeriesId, {
         melolo_vid_id: episode.vid,
         cover: episode.episode_cover || "",
-        title: episode.title || "",
+        title: paraphrasedIntro || episode.title || "",
         index_sequence: episode.vid_index || 0,
         duration: episode.duration || 0,
         video_height: episode.video_height || 1080,
@@ -45,6 +57,14 @@ export async function POST(request: NextRequest) {
       success: true,
       seriesId: dbSeriesId,
       episodeCount: episodes.length,
+      original: {
+        title: originalTitle,
+        intro: originalIntro,
+      },
+      paraphrased: {
+        title: paraphrasedTitle,
+        intro: paraphrasedIntro,
+      },
     })
   } catch (error) {
     console.error("Error saving series:", error)
