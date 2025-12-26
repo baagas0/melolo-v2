@@ -22,6 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         series_id: series.melolo_series_id,
         series_title: series.title,
         series_cover: series.cover_url,
+        local_cover_path: series.local_cover_path,
         series_intro: series.intro,
         episode_cnt: series.episode_count,
         video_list: episodes.map((ep) => ({
@@ -29,6 +30,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           vid: ep.melolo_vid_id,
           title: ep.title,
           episode_cover: ep.cover,
+          local_cover_path: ep.local_cover_path,
+          local_video_path: ep.local_video_path,
           vid_index: ep.index_sequence,
           duration: ep.duration,
         })),

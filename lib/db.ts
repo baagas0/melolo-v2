@@ -76,6 +76,12 @@ export async function saveSeries(data: {
   return newSeries.id;
 }
 
+export async function updateSeriesLocalCover(id: number, path: string): Promise<void> {
+  await db.update(schema.series)
+    .set({ local_cover_path: path, updated_at: new Date() })
+    .where(eq(schema.series.id, id));
+}
+
 export async function getEpisodesBySeriesId(seriesId: number): Promise<Episode[]> {
   const result = await db.query.episodes.findMany({
     where: eq(schema.episodes.series_id, seriesId),
@@ -123,13 +129,21 @@ export async function saveEpisode(
     .values({
       series_id: seriesId,
       ...data,
-      path: null,
       created_at: new Date(),
       updated_at: new Date(),
     })
     .returning({ id: schema.episodes.id });
 
   return newEpisode.id;
+}
+
+export async function updateEpisodeLocalPaths(
+  id: number,
+  data: { local_cover_path?: string; local_video_path?: string }
+): Promise<void> {
+  await db.update(schema.episodes)
+    .set({ ...data, updated_at: new Date() })
+    .where(eq(schema.episodes.id, id));
 }
 
 export async function deleteSeries(id: number): Promise<void> {

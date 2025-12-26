@@ -2,6 +2,7 @@ export interface Series {
   id: number
   melolo_series_id: string
   cover_url: string
+  local_cover_path: string | null
   intro: string
   title: string
   episode_count: number
@@ -14,12 +15,13 @@ export interface Episode {
   series_id: number
   melolo_vid_id: string
   cover: string
+  local_cover_path: string | null
   title: string
   index_sequence: number
   duration: number
   video_height: number
   video_weight: number
-  path: string | null
+  local_video_path: string | null
   created_at: string
   updated_at: string
 }
