@@ -216,7 +216,7 @@ export async function uploadToRumble(
 
     // Select the first available thumbnail
     const thumbnailId = Object.keys(thumbnails)[0];
-    console.log("thumbnailId", thumbnailId)
+    console.log("thumbnailId success")
 
     if (!thumbnailId) {
         throw new Error('No thumbnails available');
