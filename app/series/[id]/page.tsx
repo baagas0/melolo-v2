@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, ImageIcon, Video, Loader2, Play } from "lucide-react";
+import { ArrowLeft, Download, ImageIcon, Video, Loader2, Play, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,7 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
   // Server-side queue state
   const [activeQueueSeriesId, setActiveQueueSeriesId] = useState<number | null>(null);
   const [queueStatus, setQueueStatus] = useState<any>(null);
+  const [uploadingEpisode, setUploadingEpisode] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -176,6 +177,45 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleUploadToRumble = async (episode: Episode) => {
+    if (!series?.id || !episode.id) return;
+
+    setUploadingEpisode(episode.vid);
+    try {
+      const response = await fetch("/api/rumble/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          episodeId: episode.id,
+          title: `${series.series_title} - Episode ${episode.vid_index}`,
+          description: series.series_intro || "",
+        }),
+      });
+
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      toast({
+        title: "Success",
+        description: `Episode ${episode.vid_index} uploaded to Rumble!`,
+        duration: 5000,
+      });
+
+      // Refresh to show upload status
+      fetchSeriesDetail();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to upload to Rumble",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingEpisode(null);
+    }
+  };
+
   // Server-side Queue Logic
   const startServerQueue = async (tasks: { type: string; url?: string; filename?: string; episodeId?: number }[]) => {
     if (!series?.id) return;
@@ -242,7 +282,7 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
         // Stop polling when all tasks are done
         if (data.summary.pending === 0 && data.summary.processing === 0) {
           if (data.summary.completed > 0) {
-            fetchSeriesDetail(); // Refresh to show updated paths
+            // fetchSeriesDetail(); // Refresh to show updated paths
           }
         }
       } catch (error) {
@@ -481,6 +521,12 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
                         {downloadingVideo === episode.vid ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : episode.local_video_path ? <div className="w-2 h-2 rounded-full bg-green-500 mr-1" /> : <Video className="h-4 w-4 mr-1" />}
                         {episode.local_video_path ? "Video Saved" : "Video"}
                       </Button>
+                      {episode.local_video_path && (
+                        <Button size="sm" variant="outline" onClick={() => handleUploadToRumble(episode)} disabled={uploadingEpisode === episode.vid}>
+                          {uploadingEpisode === episode.vid ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
+                          Rumble
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

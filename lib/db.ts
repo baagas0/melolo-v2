@@ -212,3 +212,59 @@ export async function clearCompletedTasks(seriesId: number): Promise<void> {
   await db.delete(schema.downloadQueue)
     .where(eq(schema.downloadQueue.series_id, seriesId));
 }
+
+// Rumble Upload Functions
+export async function createRumbleUpload(episodeId: number): Promise<number> {
+  const existing = await db.query.rumbleUploads.findFirst({
+    where: eq(schema.rumbleUploads.episode_id, episodeId),
+  });
+
+  if (existing) {
+    return existing.id;
+  }
+
+  const [upload] = await db.insert(schema.rumbleUploads)
+    .values({
+      episode_id: episodeId,
+      status: "pending",
+      created_at: new Date(),
+      updated_at: new Date(),
+    })
+    .returning({ id: schema.rumbleUploads.id });
+
+  return upload.id;
+}
+
+export async function updateRumbleUploadStatus(
+  id: number,
+  status: string,
+  data?: {
+    video_id?: string | null;
+    rumble_url?: string | null;
+    error_message?: string | null;
+  }
+): Promise<void> {
+  await db.update(schema.rumbleUploads)
+    .set({
+      status,
+      ...(data?.video_id !== undefined && { video_id: data.video_id }),
+      ...(data?.rumble_url !== undefined && { rumble_url: data.rumble_url }),
+      ...(data?.error_message !== undefined && { error_message: data.error_message }),
+      updated_at: new Date(),
+    })
+    .where(eq(schema.rumbleUploads.id, id));
+}
+
+export async function getRumbleUploadByEpisodeId(episodeId: number) {
+  const upload = await db.query.rumbleUploads.findFirst({
+    where: eq(schema.rumbleUploads.episode_id, episodeId),
+  });
+  return upload;
+}
+
+export async function getRumbleUploadById(id: number) {
+  const upload = await db.query.rumbleUploads.findFirst({
+    where: eq(schema.rumbleUploads.id, id),
+  });
+  return upload;
+}

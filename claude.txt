@@ -1,0 +1,75 @@
+add server side uploading to rumble platform.
+
+1. upload mp4 file to curl 'https://web22.rumble.com/upload.php?api=1.3' \
+  --compressed \
+  -X POST \
+  -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0' \
+  -H 'Accept: */*' \
+  -H 'Accept-Language: id,en-US;q=0.7,en;q=0.3' \
+  -H 'Accept-Encoding: gzip, deflate, br, zstd' \
+  -H 'Content-Type: multipart/form-data; boundary=----geckoformboundary86d26976f9ebc5177e0c5fe0686ee67f' \
+  -H 'Origin: https://rumble.com' \
+  -H 'Connection: keep-alive' \
+  -H 'Referer: https://rumble.com/' \
+  -H 'Cookie: cf_clearance=HcW_QVrd9EzNUlzNouEam2NpXHlpD68hSkBrdk7TbnQ-1766776106-1.2.1.1-WlqPKD2kq_lFVpnc0ffelesQBWEJuXut8ZzVMfaINiFf.0qMAqqyCaMAs4_L74fgdTA8xQISs37WUEjA5DfCzFkYKjdHXtthVDK3iRySK8sCz6tnHsDYu4aHpzqJNgXaiCdqwH1QN9DsSkPYIavsAaOaatnT4kBUPrmC1KpXiudFTIgPOiH2W3bIcAwrpVGV7ygxP.583Viim7c9m6PXdscQYhl3ZVrKTvIcK2N_mPAsBMsRHxAAr9mJxbZknVEj; a_s=WKj5j1fD1uD47tV6090lc; _ga_PRRJGSG9MK=GS2.1.s1766772966$o6$g1$t1766776235$j59$l0$h0; _ga=GA1.1.71211732.1766306249; _gcl_au=1.1.1624308380.1766306249; _fbp=fb.1.1766306251738.458189212975338073; __ssid=3a6e5c3f57b0fd91a7b18d97e6aa866; u_s=OLeF9yrjKzL7zdSDd496; _ga_ZQRLJS848G=GS2.1.s1766775999$o4$g1$t1766776053$j6$l0$h0; __cf_bm=W0BJSHyivn8G01JUyKxIwH9pjM8kVSFkDsgc.hdi.Hc-1766776105-1.0.1.1-Zh5wDSfi5C7obl.H5bcgUSBOnZqao8WEx3nm2wmQ92_JCv0hpH5Yp7d4HIvbDUbzAaY1D2Z71myW8lwYkHfHeO6z5Ar2DdiGsujCVp9skUk; RNSC=104.28.219.241' \
+  -H 'Sec-Fetch-Dest: empty' \
+  -H 'Sec-Fetch-Mode: cors' \
+  -H 'Sec-Fetch-Site: same-site' \
+  -H 'TE: trailers' \
+  --data-binary \
+  $'------geckoformboundary86d26976f9ebc5177e0c5fe0686ee67f\r\nContent-Disposition: form-data; name="Filedata"; filename="Win Her Heart Through Baby_ep2.mp4"\r\nContent-Type: video/mp4\r\n\r\n------geckoformboundary86d26976f9ebc5177e0c5fe0686ee67f--\r\n'
+
+upload api will return text/html for video id
+
+2. hit GET API curl 'https://web22.rumble.com/upload.php?duration=:video_id&api=1.3' \
+  --compressed \
+  -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0' \
+  -H 'Accept: */*' \
+  -H 'Accept-Language: id,en-US;q=0.7,en;q=0.3' \
+  -H 'Accept-Encoding: gzip, deflate, br, zstd' \
+  -H 'Origin: https://rumble.com' \
+  -H 'Connection: keep-alive' \
+  -H 'Referer: https://rumble.com/' \
+  -H 'Cookie: cf_clearance=HcW_QVrd9EzNUlzNouEam2NpXHlpD68hSkBrdk7TbnQ-1766776106-1.2.1.1-WlqPKD2kq_lFVpnc0ffelesQBWEJuXut8ZzVMfaINiFf.0qMAqqyCaMAs4_L74fgdTA8xQISs37WUEjA5DfCzFkYKjdHXtthVDK3iRySK8sCz6tnHsDYu4aHpzqJNgXaiCdqwH1QN9DsSkPYIavsAaOaatnT4kBUPrmC1KpXiudFTIgPOiH2W3bIcAwrpVGV7ygxP.583Viim7c9m6PXdscQYhl3ZVrKTvIcK2N_mPAsBMsRHxAAr9mJxbZknVEj; a_s=WKj5j1fD1uD47tV6090lc; _ga_PRRJGSG9MK=GS2.1.s1766772966$o6$g1$t1766776258$j36$l0$h0; _ga=GA1.1.71211732.1766306249; _gcl_au=1.1.1624308380.1766306249; _fbp=fb.1.1766306251738.458189212975338073; __ssid=3a6e5c3f57b0fd91a7b18d97e6aa866; u_s=OLeF9yrjKzL7zdSDd496; _ga_ZQRLJS848G=GS2.1.s1766775999$o4$g1$t1766776053$j6$l0$h0; __cf_bm=W0BJSHyivn8G01JUyKxIwH9pjM8kVSFkDsgc.hdi.Hc-1766776105-1.0.1.1-Zh5wDSfi5C7obl.H5bcgUSBOnZqao8WEx3nm2wmQ92_JCv0hpH5Yp7d4HIvbDUbzAaY1D2Z71myW8lwYkHfHeO6z5Ar2DdiGsujCVp9skUk; RNSC=104.28.219.241' \
+  -H 'Sec-Fetch-Dest: empty' \
+  -H 'Sec-Fetch-Mode: cors' \
+  -H 'Sec-Fetch-Site: same-site' \
+  -H 'TE: trailers'
+
+ignore response for this api
+3. grab thumbnail from api curl 'https://web22.rumble.com/upload.php?thumbnails=:video_id&api=1.3' \
+  --compressed \
+  -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0' \
+  -H 'Accept: */*' \
+  -H 'Accept-Language: id,en-US;q=0.7,en;q=0.3' \
+  -H 'Accept-Encoding: gzip, deflate, br, zstd' \
+  -H 'Origin: https://rumble.com' \
+  -H 'Connection: keep-alive' \
+  -H 'Referer: https://rumble.com/' \
+  -H 'Cookie: cf_clearance=HcW_QVrd9EzNUlzNouEam2NpXHlpD68hSkBrdk7TbnQ-1766776106-1.2.1.1-WlqPKD2kq_lFVpnc0ffelesQBWEJuXut8ZzVMfaINiFf.0qMAqqyCaMAs4_L74fgdTA8xQISs37WUEjA5DfCzFkYKjdHXtthVDK3iRySK8sCz6tnHsDYu4aHpzqJNgXaiCdqwH1QN9DsSkPYIavsAaOaatnT4kBUPrmC1KpXiudFTIgPOiH2W3bIcAwrpVGV7ygxP.583Viim7c9m6PXdscQYhl3ZVrKTvIcK2N_mPAsBMsRHxAAr9mJxbZknVEj; a_s=WKj5j1fD1uD47tV6090lc; _ga_PRRJGSG9MK=GS2.1.s1766772966$o6$g1$t1766776258$j36$l0$h0; _ga=GA1.1.71211732.1766306249; _gcl_au=1.1.1624308380.1766306249; _fbp=fb.1.1766306251738.458189212975338073; __ssid=3a6e5c3f57b0fd91a7b18d97e6aa866; u_s=OLeF9yrjKzL7zdSDd496; _ga_ZQRLJS848G=GS2.1.s1766775999$o4$g1$t1766776053$j6$l0$h0; __cf_bm=W0BJSHyivn8G01JUyKxIwH9pjM8kVSFkDsgc.hdi.Hc-1766776105-1.0.1.1-Zh5wDSfi5C7obl.H5bcgUSBOnZqao8WEx3nm2wmQ92_JCv0hpH5Yp7d4HIvbDUbzAaY1D2Z71myW8lwYkHfHeO6z5Ar2DdiGsujCVp9skUk; RNSC=104.28.219.241' \
+  -H 'Sec-Fetch-Dest: empty' \
+  -H 'Sec-Fetch-Mode: cors' \
+  -H 'Sec-Fetch-Site: same-site' \
+  -H 'TE: trailers'
+
+api will response {"20": "data:image/jpeg;base64,xxxx", "21": "data:image/jpeg;base64,xxxx"}
+
+4. choose one of key from thumbnail response
+
+5. hit endpoint publish video curl 'https://web22.rumble.com/upload.php?form=1&api=1.3' \
+  --compressed \
+  -X POST \
+  -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:146.0) Gecko/20100101 Firefox/146.0' \
+  -H 'Accept: text/html, */*; q=0.01' \
+  -H 'Accept-Language: id,en-US;q=0.7,en;q=0.3' \
+  -H 'Accept-Encoding: gzip, deflate, br, zstd' \
+  -H 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8' \
+  -H 'Origin: https://rumble.com' \
+  -H 'Connection: keep-alive' \
+  -H 'Referer: https://rumble.com/' \
+  -H 'Cookie: cf_clearance=HcW_QVrd9EzNUlzNouEam2NpXHlpD68hSkBrdk7TbnQ-1766776106-1.2.1.1-WlqPKD2kq_lFVpnc0ffelesQBWEJuXut8ZzVMfaINiFf.0qMAqqyCaMAs4_L74fgdTA8xQISs37WUEjA5DfCzFkYKjdHXtthVDK3iRySK8sCz6tnHsDYu4aHpzqJNgXaiCdqwH1QN9DsSkPYIavsAaOaatnT4kBUPrmC1KpXiudFTIgPOiH2W3bIcAwrpVGV7ygxP.583Viim7c9m6PXdscQYhl3ZVrKTvIcK2N_mPAsBMsRHxAAr9mJxbZknVEj; a_s=WKj5j1fD1uD47tV6090lc; _ga_PRRJGSG9MK=GS2.1.s1766772966$o6$g1$t1766776258$j36$l0$h0; _ga=GA1.1.71211732.1766306249; _gcl_au=1.1.1624308380.1766306249; _fbp=fb.1.1766306251738.458189212975338073; __ssid=3a6e5c3f57b0fd91a7b18d97e6aa866; u_s=OLeF9yrjKzL7zdSDd496; _ga_ZQRLJS848G=GS2.1.s1766775999$o4$g1$t1766776053$j6$l0$h0; __cf_bm=W0BJSHyivn8G01JUyKxIwH9pjM8kVSFkDsgc.hdi.Hc-1766776105-1.0.1.1-Zh5wDSfi5C7obl.H5bcgUSBOnZqao8WEx3nm2wmQ92_JCv0hpH5Yp7d4HIvbDUbzAaY1D2Z71myW8lwYkHfHeO6z5Ar2DdiGsujCVp9skUk; RNSC=104.28.219.241' \
+  -H 'Sec-Fetch-Dest: empty' \
+  -H 'Sec-Fetch-Mode: cors' \
+  -H 'Sec-Fetch-Site: same-site' \
+  -H 'Priority: u=0' \
+  --data-raw $'title=EPS%202%20-%20Winning%20Her%20Heart%20Through%20the%20Babies&description=Forced%20into%20a%20sudden%20marriage%20by%20a%20shoe%20store%20manager%2C%20Jasmine%20Lam%20unexpectedly%20becomes%20the%20wife%20of%20a%20single%20father%20who%20has%20been%20married%20twice%20and%20is%20raising%20children.%20She%20believes%20married%20life%20will%20be%20calm%20and%20ordinary%E2%80%94until%20she%20discovers%20a%20shocking%20truth%3A%20her%20husband%20is%20actually%20the%20richest%20man%20in%20the%20city.%0AJasmine%20Lam%3A%20Eason%20Parker\041%20What%20else%20have%20you%20been%20hiding%20from%20me%3F%0AHusband%2C%20holding%20a%20child%3A%20These%20twins%20are%20yours%20too.&video[]=0-i8owbcfk1xj9x7susxk0.mp4&featured=6&rights=1&terms=1&facebookUpload=&vimeoUpload=&infoWho=&infoWhen=&infoWhere=&infoExtUser=&tags=&channelId=7830376&siteChannelId=15&mediaChannelId=892&isGamblingRelated=false&set_default_channel_id=1&sendPush=0&setFeaturedForUser=1&setFeaturedForChannel=1&visibility=public&availability=free&file_meta=%7B%22name%22%3A%22Win%20Her%20Heart%20Through%20Baby_ep2.mp4%22%2C%22modified%22%3A1766772743273%2C%22size%22%3A11530078%2C%22type%22%3A%22video%2Fmp4%22%2C%22time_start%22%3A1766776244935%2C%22speed%22%3A825936%2C%22num_chunks%22%3A1%2C%22time_end%22%3A1766776258895%7D&thumb=50'

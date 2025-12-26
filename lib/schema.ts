@@ -40,3 +40,14 @@ export const downloadQueue = pgTable("download_queue", {
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const rumbleUploads = pgTable("rumble_uploads", {
+    id: serial("id").primaryKey(),
+    episode_id: integer("episode_id").references(() => episodes.id, { onDelete: "cascade" }).notNull().unique(),
+    video_id: text("video_id"), // Rumble's internal video ID
+    rumble_url: text("rumble_url"), // Final public URL
+    status: varchar("status", { length: 50 }).notNull().default("pending"), // 'pending', 'uploading', 'processing', 'published', 'failed'
+    error_message: text("error_message"),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
