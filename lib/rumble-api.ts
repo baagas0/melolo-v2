@@ -2,9 +2,15 @@ import FormData from 'form-data';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const RUMBLE_BASE_URL = 'https://web22.rumble.com/upload.php';
 const RUMBLE_API_VERSION = '1.3';
+
+// Initialize Google Generative AI
+const genAI = process.env.GOOGLE_AI_API_KEY
+    ? new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY)
+    : null;
 
 function getRumbleHeaders(contentType?: string) {
     const headers: Record<string, string> = {
@@ -25,6 +31,52 @@ function getRumbleHeaders(contentType?: string) {
     }
 
     return headers;
+}
+
+/**
+ * Generate tags using Google Generative AI
+ * Returns comma-separated tags based on the video title and description
+ */
+export async function generateAITags(
+    title: string,
+    description: string
+): Promise<string> {
+    if (!genAI) {
+        console.warn('[AI Tags] Google AI API key not configured, returning empty tags');
+        return '';
+    }
+
+    try {
+        console.log('[AI Tags] Generating tags for:', title);
+
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        const prompt = `Generate 5-10 list of relevant, high-traffic, SEO-friendly video tags short Chinese drama video tags for a video with the following information:
+Title: ${title}
+Description: ${description}
+
+Requirements:
+- Tags should be relevant to the content
+- Separate tags with commas only
+- No hashtags or special characters
+- Mix of broad and specific tags
+- Lowercase only
+- Return ONLY the comma-separated tags, no other text
+
+Example output: anime, action, adventure, fantasy, series`;
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const tags = response.text().trim();
+
+        console.log('[AI Tags] Generated tags:', tags);
+
+        return tags;
+    } catch (error) {
+        console.error('[AI Tags] Error generating tags:', error);
+        // Return empty string on error to allow upload to continue
+        return '';
+    }
 }
 
 /**
@@ -111,6 +163,7 @@ export async function publishVideo(
         thumbnailId: string;
         videoFilename: string;
         fileSize: number;
+        tags?: string;
     }
 ): Promise<{ success: boolean; rumbleUrl?: string }> {
     const channelId = process.env.RUMBLE_CHANNEL_ID || '7830376';
@@ -144,7 +197,7 @@ export async function publishVideo(
     formData.append('infoWhen', '');
     formData.append('infoWhere', '');
     formData.append('infoExtUser', '');
-    formData.append('tags', '');
+    formData.append('tags', metadata.tags || '');
     formData.append('channelId', channelId);
     formData.append('siteChannelId', siteChannelId);
     formData.append('mediaChannelId', mediaChannelId);
@@ -226,6 +279,10 @@ export async function uploadToRumble(
     const stats = fs.statSync(localFilePath);
     console.log("stats", stats)
 
+    // Step 3.5: Generate AI tags
+    const aiTags = await generateAITags(metadata.title, metadata.description);
+    console.log("AI tags generated:", aiTags)
+
     // Step 4 & 5: Publish video
     const result = await publishVideo(videoId, {
         title: metadata.title,
@@ -233,6 +290,7 @@ export async function uploadToRumble(
         thumbnailId: thumbnailId,
         videoFilename: filename,
         fileSize: stats.size,
+        tags: aiTags,
     });
 
     if (!result.success) {
