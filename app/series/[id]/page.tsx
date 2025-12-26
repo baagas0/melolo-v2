@@ -187,7 +187,8 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           episodeId: episode.id,
-          title: `${series.series_title} - Episode ${episode.vid_index}`,
+          // title: `${series.series_title} - Episode ${episode.vid_index}`,
+          title: `EPS ${episode.vid_index} - ${series.series_title}`,
           description: series.series_intro || "",
         }),
       });

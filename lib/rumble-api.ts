@@ -131,33 +131,6 @@ export async function publishVideo(
         time_end: timeEnd,
     };
 
-    // const formData = new URLSearchParams({
-    //     title: metadata.title,
-    //     description: metadata.description,
-    //     'video[]': `${videoId}`,
-    //     featured: '6',
-    //     rights: '1',
-    //     terms: '1',
-    //     facebookUpload: '',
-    //     vimeoUpload: '',
-    //     infoWho: '',
-    //     infoWhen: '',
-    //     infoWhere: '',
-    //     infoExtUser: '',
-    //     tags: '',
-    //     channelId: channelId,
-    //     siteChannelId: siteChannelId,
-    //     mediaChannelId: mediaChannelId,
-    //     isGamblingRelated: 'false',
-    //     set_default_channel_id: '1',
-    //     sendPush: '0',
-    //     setFeaturedForUser: '1',
-    //     setFeaturedForChannel: '1',
-    //     visibility: 'public',
-    //     availability: 'free',
-    //     file_meta: JSON.stringify(fileMeta),
-    //     thumb: metadata.thumbnailId,
-    // });
     const formData = new FormData();
     formData.append('title', metadata.title);
     formData.append('description', metadata.description);
@@ -184,14 +157,6 @@ export async function publishVideo(
     formData.append('availability', 'free');
     formData.append('file_meta', JSON.stringify(fileMeta));
     formData.append('thumb', metadata.thumbnailId);
-
-    // const response = await fetch(`${RUMBLE_BASE_URL}?form=1&api=${RUMBLE_API_VERSION}`, {
-    //     method: 'POST',
-    //     headers: getRumbleHeaders('application/x-www-form-urlencoded; charset=UTF-8'),
-    //     body: formData.toString(),
-    // });
-
-    // const result = await response.text();
 
     try {
         const response = await axios.post(
