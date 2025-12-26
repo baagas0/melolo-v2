@@ -27,3 +27,16 @@ export const episodes = pgTable("episodes", {
     created_at: timestamp("created_at").defaultNow().notNull(),
     updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const downloadQueue = pgTable("download_queue", {
+    id: serial("id").primaryKey(),
+    series_id: integer("series_id").references(() => series.id, { onDelete: "cascade" }).notNull(),
+    episode_id: integer("episode_id").references(() => episodes.id, { onDelete: "cascade" }),
+    task_type: varchar("task_type", { length: 50 }).notNull(), // 'series_cover', 'episode_cover', 'episode_video'
+    status: varchar("status", { length: 50 }).notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed'
+    url: text("url"),
+    filename: text("filename"),
+    error_message: text("error_message"),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+    updated_at: timestamp("updated_at").defaultNow().notNull(),
+});

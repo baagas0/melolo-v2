@@ -53,9 +53,9 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
   const [downloadingEpisode, setDownloadingEpisode] = useState<string | null>(null);
   const [downloadingVideo, setDownloadingVideo] = useState<string | null>(null);
 
-  // Queue state
-  const [queue, setQueue] = useState<DownloadTask[]>([]);
-  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+  // Server-side queue state
+  const [activeQueueSeriesId, setActiveQueueSeriesId] = useState<number | null>(null);
+  const [queueStatus, setQueueStatus] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -70,6 +70,7 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
       if (data.error) {
         toast({ title: "Error", description: data.error, variant: "destructive" });
       } else {
+        setActiveQueueSeriesId(id as any);
         setSeries(data);
       }
     } catch {
@@ -175,144 +176,194 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Bulk Download Logic
-  const startQueue = (tasks: DownloadTask[]) => {
-    setQueue(tasks);
-    setIsProcessingQueue(true);
-    toast({ title: "Queue Started", description: `Added ${tasks.length} items to the download queue.` });
-  };
-
-  const stopQueue = () => {
-    setIsProcessingQueue(false);
-    toast({ title: "Queue Stopped" });
-  };
-
-  const clearQueue = () => {
-    setQueue([]);
-    setIsProcessingQueue(false);
-  };
-
-  // Use a ref to track if we're currently processing to avoid concurrent processing
-  const processingRef = React.useRef(false);
-
-  useEffect(() => {
-    if (!isProcessingQueue || queue.length === 0 || processingRef.current) return;
-
-    const pendingTask = queue.find((t) => t.status === "pending");
-    if (!pendingTask) {
-      setIsProcessingQueue(false);
-      toast({ title: "Completed", description: "All tasks in the queue have been completed." });
-      fetchSeriesDetail();
-      return;
-    }
-
-    processingRef.current = true;
-    processTask(pendingTask).finally(() => {
-      processingRef.current = false;
-    });
-  }, [isProcessingQueue, queue]);
-
-  const processTask = async (task: DownloadTask) => {
-    // Update status to processing
-    setQueue((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: "processing" } : t)));
+  // Server-side Queue Logic
+  const startServerQueue = async (tasks: { type: string; url?: string; filename?: string; episodeId?: number }[]) => {
+    if (!series?.id) return;
 
     try {
-      if (task.type === "image" && task.episode) {
-        await handleDownloadEpisodeCover(task.episode);
-      } else if (task.type === "video" && task.episode) {
-        await handleDownloadVideo(task.episode);
-      } else if (task.id === "series-cover") {
-        await handleDownloadCover();
+      const response = await fetch("/api/queue/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seriesId: series.id,
+          tasks,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.error) {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
+        return;
       }
 
-      setQueue((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: "completed" } : t)));
+      setActiveQueueSeriesId(series.id);
+      toast({
+        title: "Queue Started",
+        description: `Added ${data.totalTasks} items to the download queue. Downloads will continue even if you close this tab.`,
+        duration: 5000,
+      });
     } catch (error) {
-      setQueue((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: "failed", error: String(error) } : t)));
+      toast({
+        title: "Error",
+        description: "Failed to start download queue",
+        variant: "destructive",
+      });
     }
   };
 
-  const bulkDownloadCovers = () => {
-    if (!series) return;
-    const tasks: DownloadTask[] = [];
+  const clearServerQueue = async () => {
+    if (!series?.id) return;
 
-    tasks.push({
-      id: "series-cover",
-      label: "Series Cover",
-      type: "image",
-      status: "pending",
-    });
-
-    series.video_list.forEach((ep) => {
-      tasks.push({
-        id: `ep-${ep.vid}-cover`,
-        label: `Episode ${ep.vid_index} Cover`,
-        type: "image",
-        episode: ep,
-        status: "pending",
+    try {
+      await fetch("/api/queue/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seriesId: series.id }),
       });
+
+      setActiveQueueSeriesId(null);
+      setQueueStatus(null);
+      toast({ title: "Queue Cleared" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to clear queue", variant: "destructive" });
+    }
+  };
+
+  // Poll queue status
+  useEffect(() => {
+    if (!activeQueueSeriesId) return;
+
+    const fetchStatus = async () => {
+      try {
+        const response = await fetch(`/api/queue/status?seriesId=${activeQueueSeriesId}`);
+        const data = await response.json();
+        setQueueStatus(data);
+
+        // Stop polling when all tasks are done
+        if (data.summary.pending === 0 && data.summary.processing === 0) {
+          if (data.summary.completed > 0) {
+            fetchSeriesDetail(); // Refresh to show updated paths
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch queue status:", error);
+      }
+    };
+
+    fetchStatus(); // Initial fetch
+    const interval = setInterval(fetchStatus, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [activeQueueSeriesId]);
+
+  // Trigger background worker
+  useEffect(() => {
+    if (!activeQueueSeriesId || !queueStatus) return;
+    if (queueStatus.summary.pending === 0 && queueStatus.summary.processing === 0) return;
+
+    const processQueue = async () => {
+      try {
+        await fetch("/api/queue/process", { method: "POST" });
+      } catch (error) {
+        console.error("Failed to process queue:", error);
+      }
+    };
+
+    const interval = setInterval(processQueue, 2000); // Process every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [activeQueueSeriesId, queueStatus]);
+
+  const bulkDownloadCovers = async () => {
+    if (!series) return;
+    const tasks = [];
+
+    // Series cover
+    tasks.push({
+      type: "series_cover",
+      url: series.series_cover,
+      filename: `${series.series_title || "series"}_cover.jpg`,
     });
 
-    startQueue(tasks);
+    // Episode covers
+    for (const ep of series.video_list) {
+      tasks.push({
+        type: "episode_cover",
+        url: ep.episode_cover,
+        filename: `${series.series_title || "series"}_ep${ep.vid_index}_cover.jpg`,
+        episodeId: ep.id,
+      });
+    }
+
+    await startServerQueue(tasks);
   };
 
-  const bulkDownloadVideos = () => {
+  const bulkDownloadVideos = async () => {
     if (!series) return;
-    const tasks: DownloadTask[] = series.video_list.map((ep) => ({
-      id: `ep-${ep.vid}-video`,
-      label: `Episode ${ep.vid_index} Video`,
-      type: "video",
-      episode: ep,
-      status: "pending",
-    }));
 
-    startQueue(tasks);
+    // First, fetch video URLs for all episodes
+    const tasks = [];
+    for (const ep of series.video_list) {
+      try {
+        const response = await fetch(`/api/video/${ep.vid}`);
+        const data = await response.json();
+
+        if (data.play_url) {
+          tasks.push({
+            type: "episode_video",
+            url: data.play_url,
+            filename: `${series.series_title || "series"}_ep${ep.vid_index}.mp4`,
+            episodeId: ep.id,
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to get video URL for episode ${ep.vid_index}:`, error);
+      }
+    }
+
+    await startServerQueue(tasks);
   };
 
-  const bulkDownloadAll = () => {
+  const bulkDownloadAll = async () => {
     if (!series) return;
-    const tasks: DownloadTask[] = [];
-
-    console.log("series.video_list", series.video_list);
-    // return;
+    const tasks = [];
 
     // Series Cover
     tasks.push({
-      id: "series-cover",
-      label: "Series Cover",
-      type: "image",
-      status: "pending",
+      type: "series_cover",
+      url: series.series_cover,
+      filename: `${series.series_title || "series"}_cover.jpg`,
     });
 
-    // Episodes (Cover then Video for each)
-    series.video_list
-      .filter(async (item) => {
-        // CHECK ON /public/downloads/{:id_series}/filename
-        const coverPath = `/downloads/${series.id}/${series.series_title}_ep${item.vid_index}_cover.jpg`;
-        const videoPath = `/downloads/${series.id}/${series.series_title}_ep${item.vid_index}.mp4`;
-        // return !fs.existsSync(coverPath) || !fs.existsSync(videoPath);
-
-        const coverExists = await fetch(coverPath, { method: "HEAD" }).then((res) => res.ok);
-        const videoExists = await fetch(videoPath, { method: "HEAD" }).then((res) => res.ok);
-        return !coverExists || !videoExists;
-      })
-      .forEach((ep) => {
-        tasks.push({
-          id: `ep-${ep.vid}-cover`,
-          label: `Episode ${ep.vid_index} Cover`,
-          type: "image",
-          episode: ep,
-          status: "pending",
-        });
-        tasks.push({
-          id: `ep-${ep.vid}-video`,
-          label: `Episode ${ep.vid_index} Video`,
-          type: "video",
-          episode: ep,
-          status: "pending",
-        });
+    // Episodes (Cover and Video for each)
+    for (const ep of series.video_list) {
+      // Add episode cover
+      tasks.push({
+        type: "episode_cover",
+        url: ep.episode_cover,
+        filename: `${series.series_title || "series"}_ep${ep.vid_index}_cover.jpg`,
+        episodeId: ep.id,
       });
 
-    startQueue(tasks);
+      // Fetch and add episode video
+      try {
+        const response = await fetch(`/api/video/${ep.vid}`);
+        const data = await response.json();
+
+        if (data.play_url) {
+          tasks.push({
+            type: "episode_video",
+            url: data.play_url,
+            filename: `${series.series_title || "series"}_ep${ep.vid_index}.mp4`,
+            episodeId: ep.id,
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to get video URL for episode ${ep.vid_index}:`, error);
+      }
+    }
+
+    await startServerQueue(tasks);
   };
 
   if (loading) {
@@ -351,13 +402,13 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
               <p className="text-sm text-muted-foreground">{series.episode_cnt} episodes</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={bulkDownloadCovers} disabled={isProcessingQueue}>
+              <Button variant="outline" size="sm" onClick={bulkDownloadCovers} disabled={!!activeQueueSeriesId}>
                 Covers
               </Button>
-              <Button variant="outline" size="sm" onClick={bulkDownloadVideos} disabled={isProcessingQueue}>
+              <Button variant="outline" size="sm" onClick={bulkDownloadVideos} disabled={!!activeQueueSeriesId}>
                 Videos
               </Button>
-              <Button size="sm" onClick={bulkDownloadAll} disabled={isProcessingQueue}>
+              <Button size="sm" onClick={bulkDownloadAll} disabled={!!activeQueueSeriesId}>
                 Download All
               </Button>
             </div>
@@ -439,48 +490,45 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
         </Card>
       </main>
 
-      {/* Queue Progress Overlay */}
-      {queue.length > 0 && (
+      {/* Server Queue Progress Overlay */}
+      {queueStatus && queueStatus.summary.total > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-lg p-4 z-50 animate-in slide-in-from-bottom duration-300">
           <div className="container mx-auto">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold text-sm">Download Queue</h3>
+                  <h3 className="font-semibold text-sm">Server Download Queue</h3>
                   <p className="text-xs text-muted-foreground">
-                    {queue.filter((t) => t.status === "completed").length} of {queue.length} completed
+                    {queueStatus.summary.completed} of {queueStatus.summary.total} completed
+                    {queueStatus.summary.failed > 0 && ` • ${queueStatus.summary.failed} failed`}
                   </p>
+                  <p className="text-xs text-green-600 mt-1">✓ Downloads continue even if you close this tab</p>
                 </div>
                 <div className="flex gap-2">
-                  {isProcessingQueue ? (
-                    <Button variant="ghost" size="sm" onClick={stopQueue}>
-                      Pause
-                    </Button>
-                  ) : (
-                    queue.some((t) => t.status === "pending") && (
-                      <Button variant="ghost" size="sm" onClick={() => setIsProcessingQueue(true)}>
-                        Resume
-                      </Button>
-                    )
-                  )}
-                  <Button variant="ghost" size="sm" onClick={clearQueue}>
+                  <Button variant="ghost" size="sm" onClick={clearServerQueue}>
                     Close
                   </Button>
                 </div>
               </div>
 
-              {/* Progress Bar Container - using a simple div for progress if Progress component is not directly imported as expected */}
+              {/* Progress Bar */}
               <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary transition-all duration-300" style={{ width: `${(queue.filter((t) => t.status === "completed").length / queue.length) * 100}%` }} />
+                <div
+                  className="h-full bg-primary transition-all duration-300"
+                  style={{
+                    width: `${(queueStatus.summary.completed / queueStatus.summary.total) * 100}%`,
+                  }}
+                />
               </div>
 
               <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-                {queue.map((task) => (
+                {queueStatus.tasks.slice(0, 20).map((task: any) => (
                   <div key={task.id} className={`flex-shrink-0 flex items-center gap-2 px-3 py-1 rounded-full border text-xs ${task.status === "processing" ? "bg-primary/10 border-primary text-primary" : task.status === "completed" ? "bg-green-100 border-green-200 text-green-700" : task.status === "failed" ? "bg-red-100 border-red-200 text-red-700" : "bg-muted border-border text-muted-foreground"}`}>
                     {task.status === "processing" && <Loader2 className="h-3 w-3 animate-spin" />}
-                    {task.label}
+                    {task.task_type}
                   </div>
                 ))}
+                {queueStatus.tasks.length > 20 && <div className="text-xs text-muted-foreground px-2">+{queueStatus.tasks.length - 20} more</div>}
               </div>
             </div>
           </div>

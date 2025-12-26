@@ -149,3 +149,66 @@ export async function updateEpisodeLocalPaths(
 export async function deleteSeries(id: number): Promise<void> {
   await db.delete(schema.series).where(eq(schema.series.id, id));
 }
+
+// Download Queue Functions
+export async function createDownloadTask(data: {
+  series_id: number;
+  episode_id?: number | null;
+  task_type: string;
+  url?: string | null;
+  filename?: string | null;
+}): Promise<number> {
+  const [task] = await db.insert(schema.downloadQueue)
+    .values({
+      ...data,
+      status: "pending",
+      created_at: new Date(),
+      updated_at: new Date(),
+    })
+    .returning({ id: schema.downloadQueue.id });
+  return task.id;
+}
+
+export async function getQueueStatus(seriesId: number) {
+  const tasks = await db.query.downloadQueue.findMany({
+    where: eq(schema.downloadQueue.series_id, seriesId),
+    orderBy: [asc(schema.downloadQueue.created_at)],
+  });
+
+  const summary = {
+    total: tasks.length,
+    pending: tasks.filter(t => t.status === "pending").length,
+    processing: tasks.filter(t => t.status === "processing").length,
+    completed: tasks.filter(t => t.status === "completed").length,
+    failed: tasks.filter(t => t.status === "failed").length,
+  };
+
+  return { tasks, summary };
+}
+
+export async function getNextPendingTask() {
+  const task = await db.query.downloadQueue.findFirst({
+    where: eq(schema.downloadQueue.status, "pending"),
+    orderBy: [asc(schema.downloadQueue.created_at)],
+  });
+  return task;
+}
+
+export async function updateTaskStatus(
+  id: number,
+  status: string,
+  errorMessage?: string | null
+): Promise<void> {
+  await db.update(schema.downloadQueue)
+    .set({
+      status,
+      error_message: errorMessage,
+      updated_at: new Date(),
+    })
+    .where(eq(schema.downloadQueue.id, id));
+}
+
+export async function clearCompletedTasks(seriesId: number): Promise<void> {
+  await db.delete(schema.downloadQueue)
+    .where(eq(schema.downloadQueue.series_id, seriesId));
+}
