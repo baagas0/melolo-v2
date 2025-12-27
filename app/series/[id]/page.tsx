@@ -443,13 +443,13 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
               <p className="text-sm text-muted-foreground">{series.episode_cnt} episodes</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={bulkDownloadCovers} disabled={!!activeQueueSeriesId}>
+              <Button variant="outline" size="sm" onClick={bulkDownloadCovers}>
                 Covers
               </Button>
-              <Button variant="outline" size="sm" onClick={bulkDownloadVideos} disabled={!!activeQueueSeriesId}>
+              <Button variant="outline" size="sm" onClick={bulkDownloadVideos}>
                 Videos
               </Button>
-              <Button size="sm" onClick={bulkDownloadAll} disabled={!!activeQueueSeriesId}>
+              <Button size="sm" onClick={bulkDownloadAll}>
                 Download All
               </Button>
             </div>
