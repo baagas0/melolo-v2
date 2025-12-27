@@ -346,8 +346,8 @@ class RumbleUploadScheduler {
 // Create a singleton instance
 // Run every 6 hours: '0 */6 * * *'
 const scheduler = new RumbleUploadScheduler({
-    // cronExpression: '0 */6 * * *',
-    cronExpression: '* * * * *',
+    cronExpression: '0 */3 * * *',
+    // cronExpression: '* * * * *',
     timezone: 'UTC',
 });
 
