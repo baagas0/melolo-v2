@@ -8,6 +8,7 @@ import scheduler from './scheduler';
 let initialized = false;
 
 export function initializeScheduler() {
+
     if (initialized) {
         console.log('[Scheduler Init] Scheduler already initialized');
         return;

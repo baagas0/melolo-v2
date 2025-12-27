@@ -2,14 +2,15 @@ import FormData from 'form-data';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 const RUMBLE_BASE_URL = 'https://web22.rumble.com/upload.php';
 const RUMBLE_API_VERSION = '1.3';
 
 // Initialize Google Generative AI
 const genAI = process.env.GOOGLE_AI_API_KEY
-    ? new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY)
+    ? new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY })
     : null;
 
 function getRumbleHeaders(contentType?: string) {
@@ -49,13 +50,12 @@ export async function generateAITags(
     try {
         console.log('[AI Tags] Generating tags for:', title);
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
         const prompt = `Generate 5-10 list of relevant, high-traffic, SEO-friendly video tags short Chinese drama video tags for a video with the following information:
 Title: ${title}
 Description: ${description}
 
 Requirements:
+- Use english language
 - Tags should be relevant to the content
 - Separate tags with commas only
 - No hashtags or special characters
@@ -65,10 +65,11 @@ Requirements:
 
 Example output: anime, action, adventure, fantasy, series`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const tags = response.text().trim();
-
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        const tags = response?.text?.toString()?.trim() || '';
         console.log('[AI Tags] Generated tags:', tags);
 
         return tags;

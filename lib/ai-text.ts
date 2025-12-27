@@ -1,8 +1,9 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 // Initialize Google Generative AI
 const genAI = process.env.GOOGLE_AI_API_KEY
-    ? new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY)
+    ? new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY })
     : null;
 
 /**
@@ -25,14 +26,13 @@ export async function paraphraseText(
     try {
         console.log(`[AI Paraphrase] Paraphrasing ${type}:`, text.substring(0, 50) + '...');
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
         const prompt = type === 'title'
             ? `Paraphrase this video series title to make it more engaging, click-worthy, and SEO-friendly. Keep it concise and punchy.
 
 Original title: "${text}"
 
 Requirements:
+- Use english language
 - Make it catchy and engaging
 - Keep it under 80 characters
 - Use power words and emotional language
@@ -51,10 +51,11 @@ Paraphrased title:`
 Original description: "${text}"
 
 Requirements:
+- Use english language
 - Make it exciting and hook the reader
 - Highlight the key conflicts and themes
 - Create curiosity and emotional connection
-- Keep it under 300 characters
+- Keep it under 400 characters
 - Use persuasive language
 - Maintain the original meaning
 - Return ONLY the paraphrased description, no other text
@@ -64,9 +65,13 @@ Example:
 
 Paraphrased description:`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const paraphrased = response.text().trim();
+        // const result = await model.generateContent(prompt);
+        // const response = await result.response;
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        const paraphrased = response?.text?.toString()?.trim() || '';
 
         console.log(`[AI Paraphrase] Original ${type}:`, text);
         console.log(`[AI Paraphrase] Paraphrased ${type}:`, paraphrased);
